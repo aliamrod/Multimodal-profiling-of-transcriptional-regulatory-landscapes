@@ -1,6 +1,7 @@
 # Multimodal-profiling-of-transcriptional-regulatory-landscapes
 
-scRNA-seq Analyses:
+*scRNA-seq Analyses:*
+
 scRNA1-QC: Quality control and standard pre-processing of scRNA data using Seurat v4.0. 
 
 scRNA2-UMAP: Louvain clustering + UMAP visualization of scRNA data following transformation. 
