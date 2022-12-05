@@ -6,12 +6,14 @@
 Description of Scripts and Analysis.
 --------------------------------------
 snRNA-seq Analyses.
+
 *snRNA1-QC:* Quality control and standard pre-processing of scRNA data using Seurat v3.1.5.
 *snRNA2-UMAP:* Louvain clustering + UMAP visualization of scRNA data following transformation. 
 *snRNA3-DE:* Assignment of cluster identities based DE genes (utilizing MAST- Finak et al., 2015). 
 *snRNA4-monocle3:* Pseudotime analysis using Monocle3. Analyses include model fitting to identify gene expression changes as a function of pseudotime. 
 
 snATAC-seq Analyses.
+
 *snATAC1-QC:* Quality control of scATAC data based on (1) number of fragments and (2) TSS enrichment. 
 *snATAC2-aggregateBin:* Final QC and code for generating count matrices based on genomic bins (for initial clustering), gene bodies and promoters. 
 *snATAC3-normalization:* Code for initial clustering based on fragments from fixed-size genome wide bins.
@@ -21,6 +23,7 @@ snATAC-seq Analyses.
 *snATAC7-cluster_unique_peaks:* Identification of cluster specific peaks.
 
 Integration Analyses of snRNA and snATAC.
+
 snRNA_snATAC_Integration_01_Align_snATAC_snRNA: Integration of snRNA and snATAC data using Seurat CCA and identifcation of nearest neighbors (kNN). 
 snRNA_snATAC_Integration_02_Create_Aggreagte_snATAC_snRNA: Aggreagte snRNA and snATAC data using nearest neighbor information.
 snRNA_snATAC_Integration_04_P2G_analysis: Further characterization of identified enhancer-gene pairs.
