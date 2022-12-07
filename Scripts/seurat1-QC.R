@@ -1,4 +1,3 @@
-
 ### Load libraries. ###
 devtools::install_github(repo = "samuel-marsh/scCustomize", force = TRUE)
 library(scCustomize)
@@ -140,7 +139,35 @@ merged.data@meta.data$group[merged.data@meta.data$SampleID == "AO12"|
                               merged.data@meta.data$SampleID == "AO23" |
                               merged.data@meta.data$SampleID == "AO24"]<- "FLX"
 merged.data<- Add_Mito_Ribo_Seurat(seurat_object = merged.data, species = "Mouse", overwrite=TRUE)
+merged.data[["percent.mt"]] <- PercentageFeatureSet(merged.data, pattern = "^mt-")
 
+p1<- VlnPlot(merged.data, group.by = "SampleID", features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0)
+p2 <- FeatureScatter(merged.data, feature1 = "nCount_RNA", feature2 = "percent.mt")
+p3 <- FeatureScatter(merged.data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
+dev.off()
+
+#### Subset based on QC metrics #########
+for (i in names(sample_list)){
+  seurat.data <- sample_list[[i]]
+  maxRNA <- quantile(merged.data$nCount_RNA[merged.data$nCount_RNA>minRNA],0.961)
+  merged.data <- subset(merged.data, subset = nFeature_RNA > minGenes & nFeature_RNA < maxGenes & percent.mt < maxMT &nCount_RNA > minRNA&nCount_RNA < maxRNA&(nCount_RNA/nFeature_RNA)<10)
+  pdf(paste0('plots/scRNA/',i,'_QCafterSubsetting.pdf'),height=8,width=18)
+  p1 <- VlnPlot(merged.data, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"),group.by = "genotype", ncol = 3,pt.size = 0.01)
+  p2 <- FeatureScatter(merged.data, feature1 = "nCount_RNA",group.by="genotype", feature2 = "percent.mt")
+  p3 <- FeatureScatter(merged.data, group.by = "genotype", feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+  print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
+  dev.off()
+}
+
+  merged.data <- subset(merged.data, subset = nFeature_RNA > minGenes & nFeature_RNA < maxGenes & percent.mt < maxMT &nCount_RNA > minRNA&nCount_RNA < maxRNA)
+  pdf(paste0('plots/scRNA/',i,'_QCafterSubsetting.pdf'),height=8,width=18)
+  p1 <- VlnPlot(seurat.data, features = c("nFeature_RNA", "nCount_RNA", "percent.mt",group.by="SampleID"), ncol = 3,pt.size = 0.01)
+  p2 <- FeatureScatter(merged.data, feature1 = "nCount_RNA", feature2 = "percent.mt",group.by="SampleID")
+  p3 <- FeatureScatter(merged.data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA", group.by="SampleID")
+  print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
+  dev.off()
+}
 
 #Grouped by: CKO vs. FLX groups.
 p1<- QC_Plots_Genes(seurat_object = merged.data, low_cutoff = 300,high_cutoff = 8000, group.by="group", pt.size=0)
@@ -173,7 +200,7 @@ Plot_Median_UMIs(seurat_object = merged.data, group_by = "SampleID")
 Plot_Median_Mito(seurat_object = merged.data, group_by = "SampleID")
 Plot_Median_Other(seurat_object = merged.data, median_var = "percent_ribo", group_by = "SampleID")
 
-
+Plot_Median_Genes(seurat_object = merged.data, group_by = "SampleID")
 
 # apply filter
 merged.data <- subset(merged.data, nCount_RNA >= 200 & nCount_RNA <= 50000 & mitoPercent <= 15)
@@ -192,3 +219,15 @@ p <- ggplot(df, aes(y=n_cells, x=reorder(SampleID, -n_cells), fill=SampleID)) +
     panel.grid.minor=element_blank(),
     panel.grid.major.y=element_line(colour="lightgray", size=0.5),
   )
+
+### Correlation plots between objects. ### 
+require(car)
+scatterplotMatrix(merged.data$orig.ident,
+                  regLine = list(method = lm, lty = 1, lwd = 2, col = "red2"),
+                  diagonal = "density",
+                  pch = '.',
+                  col = 'black',
+                  ellipse = TRUE, levels = c(0.5, 0.95), robust=TRUE)
+############################################################
+
+
