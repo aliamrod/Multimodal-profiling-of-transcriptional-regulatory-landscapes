@@ -1,7 +1,6 @@
-### Load libraries ###
-devtools::install_github(repo = "samuel-marsh/scCustomize", force = TRUE)
-install.packages("config")
 
+### Load libraries. ###
+devtools::install_github(repo = "samuel-marsh/scCustomize", force = TRUE)
 library(scCustomize)
 library(dplyr)
 library(Seurat)
@@ -20,6 +19,8 @@ library(cowplot)
 library(dplyr)
 library(patchwork)
 theme_set(theme_cowplot())
+
+install.packages("config")
 library(config)
 source("/project/Neuroinformatics_Core/Konopka_lab/s204365/MACS2/plot_functions.R")
 source("/project/Neuroinformatics_Core/Konopka_lab/s204365/MACS2/aux_functions.R")
@@ -119,22 +120,11 @@ ao24$library.batch<- "2"
 # Using gene name patterns
 
 ### Merge Seurat object ###
-merged.data<- merge(ao11, y = ao12, ao19, ao20, ao21, ao22, ao23, ao24, add.cell.ids= c("AO11", "AO12", "AO19", "AO20", "AO21", "AO22", "AO23", "AO24))
-
-list_seurat<- list(ao11, ao12, ao19, ao20, ao21, ao22, ao23, ao24)
-merged.data<- Merge_Seurat_List(
-  list_seurat, 
-  add.cell.ids = c("AO11", "AO12", "AO19", "AO20", "AO21", "AO22", "AO23", "AO24"),
-  merge.data = TRUE,
-  project = "snRNA"
-)
-
-
-
-
-
-
-
+merged.data<- merge(ao11, y = c(ao12, ao19, ao20, ao21, ao22, ao23, ao24),
+                    add.cell.ids=c("AO11", "AO12",
+                                   "AO19", "AO20",
+                                   "AO21", "AO22", 
+                                   "AO23", "AO24"))
 
 
 ### Add Mitochondrial and Ribosomal Gene Percentages ###
@@ -151,149 +141,54 @@ merged.data@meta.data$group[merged.data@meta.data$SampleID == "AO12"|
                               merged.data@meta.data$SampleID == "AO24"]<- "FLX"
 merged.data<- Add_Mito_Ribo_Seurat(seurat_object = merged.data, species = "Mouse", overwrite=TRUE)
 
-### VlnPlot-Based QC Plots ###
+
+#Grouped by: CKO vs. FLX groups.
+p1<- QC_Plots_Genes(seurat_object = merged.data, low_cutoff = 300,high_cutoff = 8000, group.by="group", pt.size=0)
+p2<- QC_Plots_UMIs(seurat_object = merged.data, low_cutoff = 1000, high_cutoff = 55000,group.by="group",pt.size=0)
+p3<- QC_Plots_Mito(seurat_object = merged.data, high_cutoff = 2.5, group.by="group",pt.size=0, plot_title="Mitochondrial Proportion (mtDNA%)")
+p4<- QC_Plots_Complexity(seurat_object = merged.data, high_cutoff = 0.8, group.by="group",pt.size=0)
+wrap_plots(p1,p2,p3,p4, ncol =4)
+
+
+#Grouped by: Samples (8).
+p5<- QC_Plots_Genes(seurat_object = merged.data, low_cutoff = 300,high_cutoff = 8000, group.by="SampleID", pt.size=0)
+p6<- QC_Plots_UMIs(seurat_object = merged.data, low_cutoff = 1000, high_cutoff = 55000,group.by="SampleID",pt.size=0)
+p7<- QC_Plots_Mito(seurat_object = merged.data, high_cutoff = 2.5, group.by="SampleID", pt.size=0,plot_title="Mitochondrial Proportion (mtDNA%)")
+p8<- QC_Plots_Complexity(seurat_object = merged.data, high_cutoff = 0.8, group.by="SampleID",pt.size=0)
+wrap_plots(p5,p6,p7,p8, ncol =4)
+
+
+# Feature scatter plot.
+QC_Plot_UMIvsGene(seurat_object = merged.data, low_cutoff_gene = 200, high_cutoff_gene = 8000, low_cutoff_UMI = 1000, group.by="SampleID")
+QC_Plot_GenevsFeature(seurat_object = merged.data, feature1 = "percent_mito",low_cutoff_gene = 300,
+                      high_cutoff_gene = 10000, high_cutoff_feature = 20,group.by="SampleID")
+
+# Calculate median values and return data.frame
+median_stats<- Median_Stats(seurat_object = merged.data, group_by_var="genotype",
+                            median_var = "genotype")
+Plot_Median_Genes(seurat_object = merged.data, group_by = "genotype")
+
+Plot_Median_Genes(seurat_object = merged.data, group_by = "genotype")
+Plot_Median_UMIs(seurat_object = merged.data, group_by = "SampleID")
+Plot_Median_Mito(seurat_object = merged.data, group_by = "SampleID")
+Plot_Median_Other(seurat_object = merged.data, median_var = "percent_ribo", group_by = "SampleID")
 
 
 
+# apply filter
+merged.data <- subset(merged.data, nCount_RNA >= 200 & nCount_RNA <= 50000 & mitoPercent <= 15)
 
 
-
-
-
-
-#############
-
-
-input_dirs <- paste0(rna_sample_dir,sample_names)
-control_dirs <- c('scRNA/Telley2019_raw_counts.tsv')
-control_names <- c('Telley2019')
-control_reps <- c('rep1')
-sample_list <- list()
-control_list <- list()
-
-
-
-
-
-
-
-#### Read in the data and create Seurat object #####
-for (i in 1:length(input_dirs)){
-  seurat.data <- Read10X(data.dir = input_dirs[i])
-  seurat.data <- CreateSeuratObject(counts = seurat.data, project = sample_names[i], min.cells = min.cells, min.features = min.features)
-  seurat.data[["percent.mt"]] <- PercentageFeatureSet(seurat.data, pattern = "^mt-")
-  pdf(paste0('plots/scRNA/',sample_names[i],'_QC.pdf'),height=8,width=18)
-  p1 <- VlnPlot(seurat.data, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3,pt.size = 0.01)
-  p2 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "percent.mt")
-  p3 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
-  dev.off()
-  sample_list[sample_names[i]] <- seurat.data
-}
-
-for (i in 1:length(control_dirs)){
-  control_tsv <- read.table(control_dirs[i],sep='\t',header=T)
-  seurat.data <- CreateSeuratObject(counts = control_tsv, project = control_names[i], min.cells = min.cells, min.features = min.features)
-  seurat.data[["percent.mt"]] <- PercentageFeatureSet(seurat.data, pattern = "^mt-")
-  pdf(paste0('plots/scRNA/',control_names[i],'_QC.pdf'),height=8,width=18)
-  p1 <- VlnPlot(seurat.data, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3,pt.size = 0.01)
-  p2 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "percent.mt")
-  p3 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
-  dev.off()
-  control_list[control_names[i]] <- seurat.data
-}
-################################################
-
-#### Subset based on QC metrics #########
-for (i in names(sample_list)){
-  seurat.data <- sample_list[[i]]
-  maxRNA <- quantile(seurat.data$nCount_RNA[seurat.data$nCount_RNA>minRNA],0.961)
-  seurat.data <- subset(seurat.data, subset = nFeature_RNA > minGenes & nFeature_RNA < maxGenes & percent.mt < maxMT &nCount_RNA > minRNA&nCount_RNA < maxRNA&(nCount_RNA/nFeature_RNA)<10)
-  pdf(paste0('plots/scRNA/',i,'_QCafterSubsetting.pdf'),height=8,width=18)
-  p1 <- VlnPlot(seurat.data, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3,pt.size = 0.01)
-  p2 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "percent.mt")
-  p3 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
-  dev.off()
-  sample_list[[i]] <- seurat.data
-}
-
-for (i in names(control_list)){
-  seurat.data <- control_list[[i]]
-  seurat.data <- subset(seurat.data, subset = nFeature_RNA > minGenes & nFeature_RNA < maxGenes & percent.mt < maxMT &nCount_RNA > minRNA&nCount_RNA < maxRNA)
-  pdf(paste0('plots/scRNA/',i,'_QCafterSubsetting.pdf'),height=8,width=18)
-  p1 <- VlnPlot(seurat.data, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3,pt.size = 0.01)
-  p2 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "percent.mt")
-  p3 <- FeatureScatter(seurat.data, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-  print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
-  dev.off()
-  control_list[[i]] <- seurat.data
-}
-
-############################
-
-##### Merging into one seurat object ##############
-
-if (!batch_correction){
-  #### Default merging and subsetting(no batch correction)
-  if (!add_control){
-    cortex <- merge(sample_list[[1]], y = sample_list[2:length(sample_list)], add.cell.ids = names(sample_list), project = "RNA")
-  } else {
-    cortex <- merge(sample_list[[1]], y = c(sample_list[2:length(sample_list)],control_list), add.cell.ids = c(names(sample_list),names(control_list)), project = "RNA")
-  }
-  pdf('plots/scRNA/merged_QC.pdf',height=8,width=16)
-  print(VlnPlot(cortex, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3,pt.size = 0.001))
-  print(FeatureScatter(cortex, feature1 = "nCount_RNA", feature2 = "percent.mt",pt.size = 0.001))
-  print(FeatureScatter(cortex, feature1 = "nCount_RNA", feature2 = "nFeature_RNA",pt.size = 0.001))
-  #print(CombinePlots(plots = list(p1, p2,p3),ncol = 3))
-  dev.off()
-  #############
-} else {
-  ###### Individual subsetting and batch correction #####
-  if (!add_control){
-    cortex.list <- sample_list
-  } else {
-    cortex.list <- c(sample_list,control_list)
-  }
-  for (i in 1:length(cortex.list)) {
-    cortex.list[[i]] <- SCTransform(cortex.list[[i]], verbose = FALSE)
-  }
-  cortex.features <- SelectIntegrationFeatures(object.list = cortex.list, nfeatures = 2000)
-  cortex.list <- PrepSCTIntegration(object.list = cortex.list, anchor.features = cortex.features, verbose = FALSE)
-  cortex.anchors <- FindIntegrationAnchors(object.list = cortex.list, normalization.method = "SCT", anchor.features = cortex.features, verbose = FALSE)
-  cortex.integrated <- IntegrateData(anchorset = cortex.anchors, normalization.method = "SCT", verbose = FALSE)
-  cortex.integrated <- RunPCA(cortex.integrated, verbose = FALSE)
-  cortex.integrated <- RunUMAP(cortex.integrated, dims = 1:50)
-  plots <- DimPlot(cortex.integrated, group.by = c("orig.ident"), combine = FALSE)
-  plots <- lapply(X = plots, FUN = function(x) x + theme(legend.position = "top") + guides(color = guide_legend(nrow = 3, byrow = TRUE, override.aes = list(size = 3))))
-  CombinePlots(plots)
-  cortex <- cortex.integrated
-}
-
-###### Correlation plots between replicates and samples #####
-cortex_cpm <- as.data.frame(matrix(NA,nrow=nrow(cortex),ncol=length(unique(Idents(cortex)))))
-colnames(cortex_cpm) <- unique(Idents(cortex))
-for (i in unique(Idents(cortex))){
-  cortex_sub <- subset(cortex,subset=orig.ident==i)
-  cortex_cpm[,i] <- log2(edgeR::cpm(rowSums(cortex_sub@assays$RNA@counts), log = FALSE)+1)
-}
-png('plots/scRNA/correlation_QC.png',height=4200,width=4200,res = 300)
-heatpairs(as.matrix(cortex_cpm[rowSums(cortex_cpm)>3,]),labels=colnames(cortex_cpm),colpal="bl2gr2rd")
-dev.off()
-############################################################
-
-
-########### Cell Cycle Score identification but NO CORRECTION #####
-s.genes <- capitalize(tolower(cc.genes$s.genes))
-g2m.genes <- capitalize(tolower(cc.genes$g2m.genes))
-cortex <- CellCycleScoring(cortex, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
-cortex$CC.Difference <- cortex$S.Score - cortex$G2M.Score
-
-saveRDS(cortex,'data/merged_scRNA_filtered.RDS')
-
-
-
-
-
-
+# plot the number of cells in each sample post filtering
+df <- as.data.frame(rev(table(merged.data$SampleID)))
+colnames(df) <- c('SampleID', 'n_cells')
+p <- ggplot(df, aes(y=n_cells, x=reorder(SampleID, -n_cells), fill=SampleID)) +
+  geom_bar(stat='identity') +
+  scale_y_continuous(expand = c(0,0)) +
+  NoLegend() + RotatedAxis() +
+  ylab(expression(italic(N)[cells])) + xlab('Sample ID') +
+  ggtitle(paste('Total cells post-filtering:', sum(df$n_cells))) +
+  theme(
+    panel.grid.minor=element_blank(),
+    panel.grid.major.y=element_line(colour="lightgray", size=0.5),
+  )
