@@ -166,24 +166,11 @@ resolution <- 0.3
 nDim <- 20
 doHarmony=TRUE
 
-if(normalization=='VST'){merged.data <- merged.dataVST} else {merged.data <- merged.dataSCT}
-DefaultAssay(merged.data) <- ifelse(normalization=='VST','RNA','SCT')
-merged.data <- RunHarmony(object = cortex,group.by.vars = 'orig.ident',reduction = 'pca',assay.use = DefaultAssay(cortex),project.dim = FALSE)
-merged.data <- FindNeighbors(cortex,reduction = ifelse(doHarmony,'harmony','pca'), dims = 1:nDim,force.recalc = T)
-merged.data <- FindClusters(merged.data, resolution = resolution,n.start = 100,n.iter = 500,algorithm = cluster_method)
-merged.data <- RunUMAP(merged.data, dims = 1:nDim,reduction = ifelse(doHarmony,'harmony','pca'),n.components = 2L,min.dist=0.5,spread = 1,n.epochs = 500)
-pdf(paste0('plots/scRNA/chosen_',normalization,'_dims',nDim,'_res',resolution,'_umap',umap_method,'_UMAP.pdf'),height=16,width=16)
-DimPlot(cortex, reduction = "umap",label = T,group.by='orig.ident',cols=c('darkgreen','darkred'))
-DimPlot(cortex, reduction = "umap",label = T,repel=T,cols=cluster_colors(length(levels(merged.data))))
+
+DimPlot(merged.data, reduction = "umap",label = T,group.by='orig.ident',cols=c('darkgreen','darkred'))
+DimPlot(merged.data, reduction = "umap",label = T,repel=T,cols=length(levels(merged.data)))
 dev.off()
-for (set in c('diff_markers','layer_markers','temp_markers','other_markers','regional_markers')){
-  pdf(paste0('plots/scRNA/chosen_',normalization,'_dims',nDim,'_res',resolution,'_umap',umap_method,'_',set,'Features.pdf'),height=16,width=16)
-  print(FeaturePlot(cortex, features = get(set),cols = gene_colors(3),pt.size = 0.1,label = T))
-  dev.off()
-}    
-pdf(paste0('plots/scRNA/chosen_',normalization,'_dims',nDim,'_res',resolution,'_umap',umap_method,'_Features2.pdf'),height=12,width=12)
-print(DotPlot(cortex, features = c(diff_markers,layer_markers,temp_markers,other_markers,regional_markers),cols = gene_colors(3)) + RotatedAxis())
-dev.off()
+
 pdf(paste0('plots/scRNA/chosen_',normalization,'_dims',nDim,'_res',resolution,'_umap',umap_method,'_Features3.pdf'),height=16,width=16)
 p1 <- VlnPlot(cortex,'nFeature_RNA',pt.size = 0.001)
 p2 <- VlnPlot(cortex,'nCount_RNA',pt.size = 0.001)
@@ -191,9 +178,6 @@ p3 <- VlnPlot(cortex,'percent.mt',pt.size = 0.001)
 print(CombinePlots(list(p1,p2,p3)))
 dev.off()
 
-saveRDS(merged.data,file='/work/Neuroinformatics_Core/s204365/outputDirectory/snRNA_analyses/merged_scRNA_filtered_umap.RDS')
-
-######
 
 # create feature plots, cutoff expression values for the 98th and 99th percentile
 plot_list <- FeaturePlot(
@@ -382,3 +366,7 @@ pdf('figures/basic_DEGs_heatmap.pdf', width=15, height=12, useDingbats=FALSE)
 DoHeatmap(seurat_obj, features=top_DEGs, group.by='seurat_clusters', label=FALSE) + scale_fill_gradientn(colors=viridis(256)) + NoLegend()
 dev.off()
 
+
+
+### Save final merged, filtered file. ###
+saveRDS(merged.data,file='/work/Neuroinformatics_Core/s204365/outputDirectory/snRNA_analyses/merged_scRNA_filtered_umap.RDS')
