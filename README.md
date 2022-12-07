@@ -10,6 +10,8 @@ snRNA-seq Analyses.
 
 *snRNA2-UMAP:* Louvain clustering + UMAP visualization of scRNA data following transformation.
 
-*snRNA3-DE:* Assignment of cluster identities based DE genes (utilizing MAST- Finak et al., 2015). 
+*snRNA-3-DEG1: Geneate list of DEGs from single-cell data.
 
-*snRNA4-monocle3:* Pseudotime analysis using Monocle3. Analyses include model fitting to identify gene expression changes as a function of pseudotime. 
+*snRNA4-DEG2:* Assignment of cluster identities based DE genes (utilizing MAST- Finak et al., 2015). 
+
+*snRNA5-monocle3:* Pseudotime analysis using Monocle3. Analyses include model fitting to identify gene expression changes as a function of pseudotime. 
