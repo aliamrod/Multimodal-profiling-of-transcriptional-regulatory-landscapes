@@ -19,6 +19,12 @@ library(Seurat)
 library(ggplot2)
 library(MAST)
 library(config)
+library(BiocManager)
+library(dplyr)
+library(Seurat)
+library(ggplot2)
+library(MAST)
+library(config)
 
 DE_Method='MAST'
 top_DE <- 40
@@ -52,19 +58,19 @@ pdf('/work/Neuroinformatics_Core/s204365/outputDirectory/snRNA_analyses/snRNA_An
 DoHeatmap(merged.data, features = top50$gene,raster = T) + NoLegend()
 dev.off()
 
-pdf('plots/scRNA/CellCycle_VlnPLot.pdf',height=10,width=20)
-print(VlnPlot(cortex, c("S.Score","G2M.Score"),pt.size = 0.001))
-dev.off()        
+#pdf('plots/snRNA/CellCycle_VlnPLot.pdf',height=10,width=20)
+#print(VlnPlot(merged.data, c("S.Score","G2M.Score"),pt.size = 0.001))
+#dev.off()        
 
-ClusterID <- c("radial glia", "intermediate progenitors", "interneurons", "neurons", "UL neurons", "DL neurons", "L1")
-cluster_annot <- read.table('/work/Neuroinformatics_Core/s204365/scRNA_0001/marker_genes_dev_ctx.txt',header=T,row.names="ClusterID", sep=":")
-  'results/RNA_clusters_unfiltered.tsv',header=T,row.names = "ClusterID")
+ClusterIDs <- c("Radial_Glia", "Intermediate_Progenitors", "Interneurons", "Neurons", "UL_Neurons", "DL_Neurons", "L1")
+cluster_annot <- read.table('/work/Neuroinformatics_Core/s204365/scRNA_0001/marker_genes_dev_ctx.txt',header=T,row.names="ClusterIDs", sep="\t")
+
+
 new.cluster.ids <- as.vector(cluster_annot$CellType)
-names(new.cluster.ids) <- as.factor(levels(cortex))
-cortex <- RenameIdents(cortex, new.cluster.ids)
+names(new.cluster.ids) <- as.factor(levels(merged.data))
+merged.data <- RenameIdents(merged.data, new.cluster.ids)
 
-cortex<- merged.data
-levels(cortex) <- c('NSC','NSC_M','IPC','IPC_M','PN1','PN2','PN3','CR','IN','MG','Mural')
+levels(merged.data) <- c('NSC','NSC_M','IPC','IPC_M','PN1','PN2','PN3','CR','IN','MG','Mural')
 
 pdf('plots/scRNA/UMAPwithIDs.pdf',height=8,width=8)
 DimPlot(cortex, reduction = "umap",label = T,repel=T,pt.size = 0.2) + NoLegend()
@@ -83,19 +89,13 @@ DefaultAssay(cortex) <- 'RNA'
 pdf('plots/scRNA/DE_top20.pdf',height=40,width=20)
 DoHeatmap(cortex, features = top20$gene,raster = T) + NoLegend()
 dev.off()
+
 pdf('plots/scRNA/DE_top40.pdf',height=40,width=20)
 DoHeatmap(cortex, features = top40$gene,raster = T) + NoLegend()
 dev.off()
+saveRDS(cortex_filtered,'data/merged_scRNA_filtered_IDs.RDS')  
 
-
-saveRDS(merged.data.filtered,'data/merged_scRNA_filtered_IDs.RDS')  
-
-
-
-
-
-
-
+### End of File ###
 
 ### References ###
 # [1] "MAST: a flexible statistical framework for assessing transcriptional changes and characterizing heterogeneity in single-cell RNA sequencing data" (2015)
