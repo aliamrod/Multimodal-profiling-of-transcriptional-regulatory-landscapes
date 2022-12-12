@@ -1,4 +1,3 @@
-
 library(Signac)
 library(Seurat)
 library(reticulate)
@@ -46,69 +45,124 @@ if(file.exists(seurat_file)){
 #-----------------
 # Preparing data
 #-----------------
-
-for (i in 1:length(input_dirs)){
-  if (doQC){
-    h5_file <- paste0(input_dirs[i],"/outs/filtered_peak_bc_matrix.h5")
-    fragment.path <- paste0(input_dirs[i],"/outs/fragments.tsv.gz")
-    barcodes <- paste0(input_dirs[i],"/outs/singlecell.csv")
-    counts <- Read10X_h5('/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE104/outs/filtered_peak_bc_matrix.h5')
-    metadata <- read.csv(
-      file = '/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE104/outs/singlecell.csv',
-      header = TRUE,
-      row.names = 1
-    )
     counts.104<- Read10X_h5('./filtered_peak_bc_matrix.h5')
     counts.105<- Read10X_h5('/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE105/outs/filtered_peak_bc_matrix.h5')
     counts.106<- Read10X_h5('/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE106/outs/filtered_peak_bc_matrix.h5')
     counts.107<- Read10X_h5('/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE107/outs/filtered_peak_bc_matrix.h5')
     
-    cortex.atac.104 <- CreateSeuratObject(
-      counts = counts.104,
-      assay = 'peaks',
-      min.cells = 1,
-      meta.data = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE104/outs/singlecell.csv",
-      names.field = 2,
-      names.delim = '-'
+    metadata.104 <- read.csv(
+      file ="/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE104/outs/singlecell.csv",
+      header = TRUE,
+      row.names = 1
     )
     
+    metadata.105 <- read.csv(
+      file ="/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE105/outs/singlecell.csv",
+      header = TRUE,
+      row.names = 1
+    )
+    
+    metadata.106 <- read.csv(
+      file ="/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE106/outs/singlecell.csv",
+      header = TRUE,
+      row.names = 1
+    )
+    
+    metadata.107 <- read.csv(
+      file ="/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE107/outs/singlecell.csv",
+      header = TRUE,
+      row.names = 1
+    )
+    
+    
+    # Pre-processing Workflow #
+    cortex.assay.104<- CreateChromatinAssay(
+      counts = counts.104,
+      sep = c(":","-"),
+      genome="mm10",
+      fragments = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE104/outs/fragments.tsv.gz",
+      min.cells=1
+    )
+    
+    cortex.assay.105<- CreateChromatinAssay(
+      counts = counts.105,
+      sep = c(":","-"),
+      genome="mm10",
+      fragments = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE105/outs/fragments.tsv.gz",
+      min.cells=1
+    )
+    
+    cortex.assay.106<- CreateChromatinAssay(
+      counts = counts.106,
+      sep = c(":","-"),
+      genome="mm10",
+      fragments = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE106/outs/fragments.tsv.gz",
+      min.cells=1
+    )
+    
+    cortex.assay.107<- CreateChromatinAssay(
+      counts = counts.107,
+      sep = c(":","-"),
+      genome="mm10",
+      fragments = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE107/outs/fragments.tsv.gz",
+      min.cells=1
+    )
+    
+    
+    
+    #---------------
+    
+    cortex.atac.104 <- CreateSeuratObject(
+      counts = cortex.assay.104,
+      assay = 'peaks',
+      project='ATAC',
+      min.cells = 1,
+      meta.data = metadata.104
+
+    )
     
     cortex.atac.105 <- CreateSeuratObject(
-      counts = counts.104,
+      counts = cortex.assay.105,
       assay = 'peaks',
+      project='ATAC',
       min.cells = 1,
-      meta.data = "./singlecell.csv",
-      names.field = 2,
-      names.delim = '-'
+      meta.data = metadata.105
     )
+    
     cortex.atac.106 <- CreateSeuratObject(
-      counts = counts.104,
+      counts = cortex.assay.106,
       assay = 'peaks',
+      project='ATAC',
       min.cells = 1,
-      meta.data = "./singlecell.csv",
-      names.field = 2,
-      names.delim = '-'
+      meta.data = metadata.106
     )
+    
     cortex.atac.107 <- CreateSeuratObject(
-      counts = counts.104,
+      counts = cortex.assay.107,
       assay = 'peaks',
+      project='ATAC',
       min.cells = 1,
-      meta.data = "./singlecell.csv",
-      names.field = 2,
-      names.delim = '-'
+      meta.data = metadata.107
     )
     
     
+    cortex.atac.104$orig.ident <- as.factor(1)
+    cortex.atac.105$orig.ident <- as.factor(2)
+    cortex.atac.106$orig.ident <- as.factor(3)
+    cortex.atac.107$orig.ident <- as.factor(4)
     
-   # cortex.atac.104$orig.ident <- as.factor(i)
-   # Idents(cortex.atac) <- as.factor(i)
+   Idents(cortex.atac.104) <- as.factor(1)
+   Idents(cortex.atac.105) <- as.factor(2)
+   Idents(cortex.atac.106) <- as.factor(3)
+   Idents(cortex.atac.107) <- as.factor(4)
+   
     
     cortex.atac.104 <- SetFragments(
       object = cortex.atac.104,
       file = '/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE104/outs/fragments.tsv.gz'
     )
     
-    cortex.atac.104 <- NucleosomeSignal(object = cortex.atac)
+    cortex.atac.104 <- NucleosomeSignal(object = cortex.assay.104)
     cortex.atac.104$nucleosome_signal[is.infinite(cortex.atac$nucleosome_signal)] <- 0
     cortex.atac.104$pct_reads_in_peaks <- cortex.atac$peak_region_fragments / cortex.atac$nCount_peaks * 100
     cortex.atac.104$blacklist_ratio <- cortex.atac$blacklist_region_fragments / cortex.atac$peak_region_fragments
