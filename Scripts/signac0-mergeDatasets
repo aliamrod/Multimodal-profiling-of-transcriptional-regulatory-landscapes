@@ -1,1 +1,170 @@
 
+### Merging objects ###
+library(Signac)
+library(Seurat)
+library(GenomicRanges)
+library(future)
+
+plan("multiprocess", workers = 4)
+options(future.globals.maxSize = 50000 * 1024^2) # for 50 Gb RAM
+
+directory<- '/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT'
+setwd(directory)
+
+# read in peak sets
+peaks.104 <- read.table(
+  file = "./SAMPLE104/outs/peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+peaks.105 <- read.table(
+  file = "./SAMPLE105/outs/peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+peaks.106 <- read.table(
+  file = "./SAMPLE106/outs/peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+peaks.107 <- read.table(
+  file = "./SAMPLE107/outs/peaks.bed",
+  col.names = c("chr", "start", "end")
+)
+
+# convert to genomic ranges
+gr.104 <- makeGRangesFromDataFrame(peaks.104)
+gr.105 <- makeGRangesFromDataFrame(peaks.105)
+gr.106 <- makeGRangesFromDataFrame(peaks.106)
+gr.107 <- makeGRangesFromDataFrame(peaks.107)
+
+# Create a unified set of peaks to quantify in each dataset
+combined.peaks <- reduce(x = c(gr.104, gr.105, gr.106, gr.107))
+
+# Filter out bad peaks based on length
+peakwidths <- width(combined.peaks)
+combined.peaks <- combined.peaks[peakwidths  < 10000 & peakwidths > 20]
+# combined.peaks
+
+### Create Fragment Objects ###
+# load metadata
+md.104 <- read.table(
+  file = "./SAMPLE104/outs/singlecell.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-1, ] # remove the first row
+
+md.105 <- read.table(
+  file = "./SAMPLE105/outs/singlecell.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-1, ]
+
+md.106 <- read.table(
+  file = "./SAMPLE106/outs/singlecell.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-1, ]
+
+md.107 <- read.table(
+  file = "./SAMPLE107/outs/singlecell.csv",
+  stringsAsFactors = FALSE,
+  sep = ",",
+  header = TRUE,
+  row.names = 1
+)[-1, ]
+
+# perform an initial filtering of low count cells
+md.104 <- md.104[md.104$passed_filters > 500, ]
+md.105<- md.105[md.105$passed_filters > 500, ]
+md.106 <- md.106[md.106$passed_filters > 500, ]
+md.107 <- md.107[md.107$passed_filters > 1000, ] # sequenced deeper so set higher cutoff
+
+# create fragment objects
+frags.104 <- CreateFragmentObject(
+  path = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE104/outs/fragments.tsv.gz",
+  cells = rownames(md.104)
+)
+frags.105 <- CreateFragmentObject(
+  path = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE105/outs/fragments.tsv.gz",
+  cells = rownames(md.105)
+)
+frags.106 <- CreateFragmentObject(
+  path = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE106/outs/fragments.tsv.gz",
+  cells = rownames(md.106)
+)
+frags.107 <- CreateFragmentObject(
+  path = "/work/Neuroinformatics_Core/s204365/ATACSeq_0002/COUNT/SAMPLE107/outs/fragments.tsv.gz",
+  cells = rownames(md.107)
+)
+
+### Quantify peaks in each dataset ###
+s104.counts <- FeatureMatrix(
+  fragments = frags.104,
+  features = combined.peaks,
+  cells = rownames(md.104)
+)
+s105.counts<- FeatureMatrix(
+  fragments = frags.105,
+  features = combined.peaks,
+  cells = rownames(md.105)
+)
+s106.counts <- FeatureMatrix(
+  fragments = frags.106,
+  features = combined.peaks,
+  cells = rownames(md.106)
+)
+
+s107.counts <- FeatureMatrix(
+  fragments = frags.107,
+  features = combined.peaks,
+  cells = rownames(md.107)
+)
+
+# Create the objects.
+s104_assay <- CreateChromatinAssay(s104.counts, fragments = frags.104)
+s104 <- CreateSeuratObject(s104_assay, assay = "ATAC", meta.data=md.104)
+
+s105_assay <- CreateChromatinAssay(s105.counts, fragments = frags.105)
+s105 <- CreateSeuratObject(s105_assay, assay = "ATAC", meta.data=md.105)
+
+s106_assay <- CreateChromatinAssay(s106.counts, fragments = frags.106)
+s106 <- CreateSeuratObject(s106_assay, assay = "ATAC", meta.data=md.106)
+
+s107_assay <- CreateChromatinAssay(s107.counts, fragments = frags.107)
+s107 <- CreateSeuratObject(s107_assay, assay = "ATAC", meta.data=md.107)
+
+
+
+# Merge objects.
+# add information to identify dataset of origin
+s104$dataset <- 's104'
+s105$dataset <- 's105'
+s106$dataset <- 's106'
+s107$dataset <- 's107'
+
+# merge all datasets, adding a cell ID to make sure cell names are unique
+combined <- merge(
+  x = s104,
+  y = list(s105, s106, s107),
+  add.cell.ids = c("104", "105", "106", "107")
+)
+combined[["ATAC"]]
+combined <- RunTFIDF(combined)
+combined <- FindTopFeatures(combined, min.cutoff = 20)
+combined <- RunSVD(combined)
+combined <- RunUMAP(combined, dims = 2:50, reduction = 'lsi')
+
+DimPlot(combined, group.by = 'dataset', pt.size = 0.1)
+
+
+CoveragePlot(
+  object = combined,
+  group.by = 'dataset',
+  region = "chr14-99700000-99760000"
+)
+
+merged.data<- saveRDS(combined, '/work/Neuroinformatics_Core/s204365/ATACSeq_0002/')
